@@ -98,10 +98,10 @@ export default function GradingResults({ result, onGradeAnother }: GradingResult
         {card ? (
           <div className="bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30 rounded-xl p-4">
             <div className="flex items-start gap-4">
-              {/* Card Reference Image */}
+              {/* Card Reference Image - use captured front image */}
               <div className="relative w-20 h-28 rounded-lg overflow-hidden shadow-lg flex-shrink-0 ring-2 ring-purple-400/30">
                 <Image
-                  src={card.images.small}
+                  src={frontImageUrl}
                   alt={card.name}
                   fill
                   className="object-contain bg-gray-900"

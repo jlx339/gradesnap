@@ -61,11 +61,14 @@ export async function POST(request: NextRequest) {
     
     if (!apiToken) {
       // Return gracefully if no API token configured
+      console.log("XIMILAR_API_TOKEN not configured");
       return NextResponse.json({
         success: false,
-        error: "Card identification not configured",
+        error: "Card identification not configured - missing API token",
       });
     }
+    
+    console.log("Calling Ximilar API for card identification...");
 
     // Remove data URL prefix for base64
     const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
@@ -82,14 +85,17 @@ export async function POST(request: NextRequest) {
     });
 
     if (!response.ok) {
-      console.error(`Ximilar API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error(`Ximilar API error: ${response.status} - ${errorText}`);
       return NextResponse.json({
         success: false,
-        error: "Card identification service unavailable",
+        error: `Card identification failed (${response.status})`,
+        debug: process.env.NODE_ENV === "development" ? errorText : undefined,
       });
     }
 
     const data: XimilarResponse = await response.json();
+    console.log("Ximilar response:", JSON.stringify(data.status));
 
     // Find the card object in the response
     const cardObject = data.records[0]?._objects?.find(
@@ -97,11 +103,14 @@ export async function POST(request: NextRequest) {
     );
 
     if (!cardObject || !cardObject._identification?.best_match) {
+      console.log("No card match found. Objects:", data.records[0]?._objects?.map(o => o.name));
       return NextResponse.json({
         success: false,
-        error: "Could not identify card from image",
+        error: "Could not identify card - try a clearer photo of the front",
       });
     }
+    
+    console.log("Card identified:", cardObject._identification.best_match.name);
 
     const match = cardObject._identification.best_match;
 
