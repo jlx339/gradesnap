@@ -5,6 +5,7 @@ import CameraCapture from "@/components/CameraCapture";
 import ImagePreview from "@/components/ImagePreview";
 import GradingResults from "@/components/GradingResults";
 import { AppStep, GradingResult, CardSide, CapturedImages } from "@/types";
+import { compressImage } from "@/lib/image-utils";
 
 export default function Home() {
   const [step, setStep] = useState<AppStep>("home");
@@ -34,14 +35,20 @@ export default function Home() {
     setError(null);
 
     try {
+      // Compress images before sending to avoid payload size limits
+      const [compressedFront, compressedBack] = await Promise.all([
+        compressImage(capturedImages.front, 800, 0.7),
+        compressImage(capturedImages.back, 800, 0.7),
+      ]);
+
       const response = await fetch("/api/grade", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ 
-          frontImage: capturedImages.front,
-          backImage: capturedImages.back 
+          frontImage: compressedFront,
+          backImage: compressedBack 
         }),
       });
 
