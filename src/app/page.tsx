@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import CameraCapture from "@/components/CameraCapture";
 import ImagePreview from "@/components/ImagePreview";
 import GradingResults from "@/components/GradingResults";
+import CardSearch from "@/components/CardSearch";
 import { AppStep, GradingResult, CardSide, CapturedImages, CardInfo } from "@/types";
 import { compressImage } from "@/lib/image-utils";
 
@@ -41,22 +42,15 @@ export default function Home() {
         compressImage(capturedImages.back, 800, 0.7),
       ]);
 
-      // Run grading API call and card identification in parallel
-      const [gradeResponse, identifyResponse] = await Promise.all([
-        fetch("/api/grade", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            frontImage: compressedFront,
-            backImage: compressedBack 
-          }),
+      // Run grading API call
+      const gradeResponse = await fetch("/api/grade", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          frontImage: compressedFront,
+          backImage: compressedBack 
         }),
-        fetch("/api/identify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: compressedFront }),
-        }).catch(() => null),
-      ]);
+      });
 
       if (!gradeResponse.ok) {
         const errorData = await gradeResponse.json();
@@ -64,17 +58,10 @@ export default function Home() {
       }
 
       const result: GradingResult = await gradeResponse.json();
-      
-      // Add card info if identification was successful
-      if (identifyResponse?.ok) {
-        const identifyData = await identifyResponse.json();
-        if (identifyData.success && identifyData.card) {
-          result.card = identifyData.card as CardInfo;
-        }
-      }
-      
       setGradingResult(result);
-      setStep("results");
+      
+      // Go to card identification step
+      setStep("identify");
     } catch (err) {
       console.error("Grading error:", err);
       setError(err instanceof Error ? err.message : "Failed to grade card. Please try again.");
@@ -82,6 +69,17 @@ export default function Home() {
       setIsProcessing(false);
     }
   }, [capturedImages]);
+
+  const handleCardSelect = useCallback((card: CardInfo) => {
+    if (gradingResult) {
+      setGradingResult({ ...gradingResult, card });
+    }
+    setStep("results");
+  }, [gradingResult]);
+
+  const handleSkipIdentify = useCallback(() => {
+    setStep("results");
+  }, []);
 
   const handleReset = useCallback(() => {
     setStep("home");
@@ -142,6 +140,15 @@ export default function Home() {
         onRetakeBack={handleRetakeBack}
         onCancel={handleReset}
         isProcessing={isProcessing}
+      />
+    );
+  }
+
+  if (step === "identify") {
+    return (
+      <CardSearch
+        onSelect={handleCardSelect}
+        onSkip={handleSkipIdentify}
       />
     );
   }

@@ -84,7 +84,7 @@ export interface PokemonTCGResponse {
 }
 
 // App state types
-export type AppStep = "home" | "capture-front" | "capture-back" | "preview" | "processing" | "results";
+export type AppStep = "home" | "capture-front" | "capture-back" | "preview" | "processing" | "identify" | "results";
 
 export type CardSide = "front" | "back";
 
