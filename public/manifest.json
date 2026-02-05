@@ -1,0 +1,22 @@
+{
+  "name": "GradeSnap - Pokemon Card Grader",
+  "short_name": "GradeSnap",
+  "description": "Snap a photo, get an instant PSA grade estimate for your Pokemon cards using AI",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1e3a8a",
+  "theme_color": "#3B4CCA",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
