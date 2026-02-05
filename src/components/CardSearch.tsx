@@ -7,13 +7,15 @@ import { CardInfo } from "@/types";
 interface CardSearchProps {
   onSelect: (card: CardInfo) => void;
   onSkip: () => void;
+  initialQuery?: string;
 }
 
-export default function CardSearch({ onSelect, onSkip }: CardSearchProps) {
-  const [query, setQuery] = useState("");
+export default function CardSearch({ onSelect, onSkip, initialQuery = "" }: CardSearchProps) {
+  const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<CardInfo[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [showDetectedBadge, setShowDetectedBadge] = useState(!!initialQuery);
 
   // Debounced search
   useEffect(() => {
@@ -68,15 +70,32 @@ export default function CardSearch({ onSelect, onSkip }: CardSearchProps) {
       </div>
 
       <div className="px-4 py-6 space-y-4">
+        {/* Auto-detected badge */}
+        {showDetectedBadge && initialQuery && (
+          <div className="flex items-center gap-2 bg-green-500/20 border border-green-500/30 rounded-xl px-4 py-3">
+            <svg className="w-5 h-5 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div className="flex-1 min-w-0">
+              <p className="text-green-300 text-sm font-medium">Card name detected!</p>
+              <p className="text-green-300/70 text-xs">We found &quot;{initialQuery}&quot; - select matching card below</p>
+            </div>
+          </div>
+        )}
+
         {/* Search Input */}
         <div className="relative">
           <input
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              if (e.target.value !== initialQuery) {
+                setShowDetectedBadge(false);
+              }
+            }}
             placeholder="Search card name (e.g., Charizard, Pikachu)"
             className="w-full px-4 py-4 pr-12 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:border-yellow-400/50 focus:ring-2 focus:ring-yellow-400/20"
-            autoFocus
           />
           {isSearching && (
             <div className="absolute right-4 top-1/2 -translate-y-1/2">

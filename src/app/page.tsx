@@ -7,6 +7,7 @@ import GradingResults from "@/components/GradingResults";
 import CardSearch from "@/components/CardSearch";
 import { AppStep, GradingResult, CardSide, CapturedImages, CardInfo } from "@/types";
 import { compressImage } from "@/lib/image-utils";
+import { extractCardName } from "@/lib/card-ocr";
 
 export default function Home() {
   const [step, setStep] = useState<AppStep>("home");
@@ -15,6 +16,7 @@ export default function Home() {
   const [gradingResult, setGradingResult] = useState<GradingResult | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [detectedCardName, setDetectedCardName] = useState<string | null>(null);
 
   const handleCaptureFront = useCallback((imageData: string) => {
     setCapturedImages(prev => ({ ...prev, front: imageData }));
@@ -34,6 +36,7 @@ export default function Home() {
 
     setIsProcessing(true);
     setError(null);
+    setDetectedCardName(null);
 
     try {
       // Compress images before sending to avoid payload size limits
@@ -42,15 +45,19 @@ export default function Home() {
         compressImage(capturedImages.back, 800, 0.7),
       ]);
 
-      // Run grading API call
-      const gradeResponse = await fetch("/api/grade", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          frontImage: compressedFront,
-          backImage: compressedBack 
+      // Run grading API call and OCR in parallel
+      const [gradeResponse, ocrResult] = await Promise.all([
+        fetch("/api/grade", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            frontImage: compressedFront,
+            backImage: compressedBack 
+          }),
         }),
-      });
+        // Run OCR on front image to detect card name
+        extractCardName(compressedFront).catch(() => null),
+      ]);
 
       if (!gradeResponse.ok) {
         const errorData = await gradeResponse.json();
@@ -59,6 +66,11 @@ export default function Home() {
 
       const result: GradingResult = await gradeResponse.json();
       setGradingResult(result);
+      
+      // Store detected card name for search pre-fill
+      if (ocrResult) {
+        setDetectedCardName(ocrResult);
+      }
       
       // Go to card identification step
       setStep("identify");
@@ -87,6 +99,7 @@ export default function Home() {
     setCurrentSide("front");
     setGradingResult(null);
     setError(null);
+    setDetectedCardName(null);
   }, []);
 
   const handleRetakeFront = useCallback(() => {
@@ -149,6 +162,7 @@ export default function Home() {
       <CardSearch
         onSelect={handleCardSelect}
         onSkip={handleSkipIdentify}
+        initialQuery={detectedCardName || ""}
       />
     );
   }
