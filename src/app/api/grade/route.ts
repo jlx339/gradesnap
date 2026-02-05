@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { CONDITION_TO_PSA, NyckelResponse, NyckelPrediction } from "@/types";
+import { CONDITION_TO_PSA, NyckelResponse, NyckelPrediction, CardInfo } from "@/types";
+import { extractTextFromImage, parseCardNameFromText, parseCardNumberFromText } from "@/lib/ocr";
 
 const NYCKEL_FUNCTION_ID = "card-grading-condition";
 const NYCKEL_API_URL = `https://www.nyckel.com/v1/functions/${NYCKEL_FUNCTION_ID}/invoke`;
+const POKEMON_TCG_API_URL = "https://api.pokemontcg.io/v2";
 
 // Weight for combining front and back grades (70% front, 30% back - industry standard)
 const FRONT_WEIGHT = 0.7;
@@ -70,6 +72,59 @@ function combinePredictions(
   return result.sort((a, b) => b.confidence - a.confidence);
 }
 
+// Identify card from image using OCR and Pokemon TCG API
+async function identifyCard(imageData: string): Promise<CardInfo | null> {
+  try {
+    // Extract text from image
+    const ocrText = await extractTextFromImage(imageData);
+    const cardName = parseCardNameFromText(ocrText);
+    const cardNumber = parseCardNumberFromText(ocrText);
+
+    if (!cardName) {
+      console.log("Could not extract card name from OCR");
+      return null;
+    }
+
+    console.log(`OCR detected card name: "${cardName}", number: "${cardNumber}"`);
+
+    // Search Pokemon TCG API
+    const response = await fetch(
+      `${POKEMON_TCG_API_URL}/cards?q=name:"${encodeURIComponent(cardName)}*"&pageSize=10&orderBy=-set.releaseDate`,
+      {
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+
+    if (!response.ok) {
+      console.error(`Pokemon TCG API error: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const cards: CardInfo[] = data.data || [];
+
+    if (cards.length === 0) {
+      console.log(`No cards found for "${cardName}"`);
+      return null;
+    }
+
+    // Find best match based on card number if available
+    let bestMatch = cards[0];
+    if (cardNumber) {
+      const numberOnly = cardNumber.split("/")[0];
+      const exactMatch = cards.find(card => card.number === numberOnly);
+      if (exactMatch) {
+        bestMatch = exactMatch;
+      }
+    }
+
+    return bestMatch;
+  } catch (error) {
+    console.error("Card identification error:", error);
+    return null;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { frontImage, backImage } = await request.json();
@@ -81,10 +136,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Grade both images in parallel
-    const [frontResponse, backResponse] = await Promise.all([
+    // Grade both images and identify card in parallel
+    const [frontResponse, backResponse, cardInfo] = await Promise.all([
       gradeImage(frontImage),
       gradeImage(backImage),
+      identifyCard(frontImage), // Use front image for card identification
     ]);
 
     // Extract results
@@ -150,6 +206,7 @@ export async function POST(request: NextRequest) {
         range: psaMapping.range,
         label: psaMapping.label,
       },
+      card: cardInfo || undefined,
     };
 
     return NextResponse.json(result);

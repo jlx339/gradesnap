@@ -11,7 +11,7 @@ interface GradingResultsProps {
 
 export default function GradingResults({ result, onGradeAnother }: GradingResultsProps) {
   const [activeTab, setActiveTab] = useState<"combined" | "front" | "back">("combined");
-  const { condition, confidence, estimatedPSA, frontResult, backResult, frontImageUrl, backImageUrl } = result;
+  const { condition, confidence, estimatedPSA, frontResult, backResult, frontImageUrl, backImageUrl, card } = result;
   
   // Get top 5 predictions for display
   const topPredictions = result.allPredictions
@@ -21,6 +21,11 @@ export default function GradingResults({ result, onGradeAnother }: GradingResult
   // Get grade for front/back
   const frontGrade = CONDITION_TO_PSA[frontResult.condition]?.grade || 5;
   const backGrade = CONDITION_TO_PSA[backResult.condition]?.grade || 5;
+
+  // Extract year from set release date
+  const releaseYear = card?.set.releaseDate 
+    ? new Date(card.set.releaseDate).getFullYear() 
+    : null;
 
   return (
     <div className="min-h-screen min-h-[-webkit-fill-available] bg-gradient-to-b from-blue-900 to-blue-950 pb-28">
@@ -88,6 +93,88 @@ export default function GradingResults({ result, onGradeAnother }: GradingResult
             Estimated PSA Range: {estimatedPSA.range}
           </p>
         </div>
+
+        {/* Card Identification */}
+        {card ? (
+          <div className="bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30 rounded-xl p-4">
+            <div className="flex items-start gap-4">
+              {/* Card Reference Image */}
+              <div className="relative w-20 h-28 rounded-lg overflow-hidden shadow-lg flex-shrink-0 ring-2 ring-purple-400/30">
+                <Image
+                  src={card.images.small}
+                  alt={card.name}
+                  fill
+                  className="object-contain bg-gray-900"
+                  unoptimized
+                />
+              </div>
+              
+              {/* Card Details */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <svg className="w-4 h-4 text-purple-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-purple-300 text-xs font-medium">Card Identified</span>
+                </div>
+                
+                <h3 className="text-white font-bold text-lg truncate">{card.name}</h3>
+                
+                <div className="mt-2 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-white/50 text-xs w-14">Set:</span>
+                    <span className="text-white/90 text-sm truncate">{card.set.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-white/50 text-xs w-14">Number:</span>
+                    <span className="text-white/90 text-sm">
+                      {card.number}/{card.set.printedTotal || "?"}
+                    </span>
+                  </div>
+                  {releaseYear && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-white/50 text-xs w-14">Year:</span>
+                      <span className="text-white/90 text-sm">{releaseYear}</span>
+                    </div>
+                  )}
+                  {card.rarity && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-white/50 text-xs w-14">Rarity:</span>
+                      <span className="text-white/90 text-sm">{card.rarity}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* TCGPlayer Link */}
+                {card.tcgplayer?.url && (
+                  <a
+                    href={card.tcgplayer.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 mt-3 text-xs text-purple-300 hover:text-purple-200"
+                  >
+                    <span>View on TCGPlayer</span>
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+            <div className="flex items-center gap-3">
+              <svg className="w-5 h-5 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <p className="text-white/60 text-sm">Card Not Identified</p>
+                <p className="text-white/40 text-xs">Could not automatically identify this card from the image</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tab Switcher */}
         <div className="flex bg-white/10 rounded-xl p-1">

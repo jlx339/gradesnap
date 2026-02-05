@@ -52,15 +52,26 @@ export interface GradingResult {
 export interface CardInfo {
   id: string;
   name: string;
+  number: string;
   set: {
     id: string;
     name: string;
     series: string;
+    releaseDate?: string;
+    printedTotal?: number;
   };
   rarity?: string;
+  hp?: string;
+  types?: string[];
+  supertype?: string;
+  subtypes?: string[];
   images: {
     small: string;
     large: string;
+  };
+  tcgplayer?: {
+    url?: string;
+    prices?: Record<string, { market?: number; low?: number; mid?: number; high?: number }>;
   };
 }
 
