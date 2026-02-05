@@ -6,6 +6,7 @@ import ImagePreview from "@/components/ImagePreview";
 import GradingResults from "@/components/GradingResults";
 import { AppStep, GradingResult, CardSide, CapturedImages } from "@/types";
 import { compressImage } from "@/lib/image-utils";
+import { identifyCard } from "@/lib/card-identifier";
 
 export default function Home() {
   const [step, setStep] = useState<AppStep>("home");
@@ -41,23 +42,31 @@ export default function Home() {
         compressImage(capturedImages.back, 800, 0.7),
       ]);
 
-      const response = await fetch("/api/grade", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ 
-          frontImage: compressedFront,
-          backImage: compressedBack 
+      // Run grading API call and card identification in parallel
+      const [gradeResponse, identificationResult] = await Promise.all([
+        fetch("/api/grade", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            frontImage: compressedFront,
+            backImage: compressedBack 
+          }),
         }),
-      });
+        identifyCard(compressedFront).catch(() => ({ success: false as const })),
+      ]);
 
-      if (!response.ok) {
-        const errorData = await response.json();
+      if (!gradeResponse.ok) {
+        const errorData = await gradeResponse.json();
         throw new Error(errorData.error || "Failed to grade card");
       }
 
-      const result: GradingResult = await response.json();
+      const result: GradingResult = await gradeResponse.json();
+      
+      // Add card info if identification was successful
+      if (identificationResult.success && "card" in identificationResult && identificationResult.card) {
+        result.card = identificationResult.card;
+      }
+      
       setGradingResult(result);
       setStep("results");
     } catch (err) {
