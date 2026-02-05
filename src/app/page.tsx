@@ -4,9 +4,8 @@ import { useState, useCallback } from "react";
 import CameraCapture from "@/components/CameraCapture";
 import ImagePreview from "@/components/ImagePreview";
 import GradingResults from "@/components/GradingResults";
-import { AppStep, GradingResult, CardSide, CapturedImages } from "@/types";
+import { AppStep, GradingResult, CardSide, CapturedImages, CardInfo } from "@/types";
 import { compressImage } from "@/lib/image-utils";
-import { identifyCard } from "@/lib/card-identifier";
 
 export default function Home() {
   const [step, setStep] = useState<AppStep>("home");
@@ -43,7 +42,7 @@ export default function Home() {
       ]);
 
       // Run grading API call and card identification in parallel
-      const [gradeResponse, identificationResult] = await Promise.all([
+      const [gradeResponse, identifyResponse] = await Promise.all([
         fetch("/api/grade", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -52,7 +51,11 @@ export default function Home() {
             backImage: compressedBack 
           }),
         }),
-        identifyCard(compressedFront).catch(() => ({ success: false as const })),
+        fetch("/api/identify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: compressedFront }),
+        }).catch(() => null),
       ]);
 
       if (!gradeResponse.ok) {
@@ -63,8 +66,11 @@ export default function Home() {
       const result: GradingResult = await gradeResponse.json();
       
       // Add card info if identification was successful
-      if (identificationResult.success && "card" in identificationResult && identificationResult.card) {
-        result.card = identificationResult.card;
+      if (identifyResponse?.ok) {
+        const identifyData = await identifyResponse.json();
+        if (identifyData.success && identifyData.card) {
+          result.card = identifyData.card as CardInfo;
+        }
       }
       
       setGradingResult(result);
